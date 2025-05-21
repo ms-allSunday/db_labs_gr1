@@ -1,4 +1,4 @@
-# Реалізація інформаційного та програмного забезпечення
+﻿# Реалізація інформаційного та програмного забезпечення
 
 У рамках проєкту розробляється:
 - SQL-скрипти для створення та початкового наповнення бази даних;
@@ -119,3 +119,162 @@ INSERT INTO Answer (value, responseId, questionId) VALUES
 ('Yes', 4, 5),
 ('No issues', 4, 6);
 ```
+
+## RESTfull сервіс для управління даними
+
+RESTfull сервіс для управління таблицею User у базі даних db, створеної в MySQL. Цей застосунок був створений за допомогою фреймворку Spring Boot на мові Java. Цей застосунок реалізує набір CRUD-операцій (Create, Read, Update, Delete) для роботи з користувачами, що зберігаються в базі даних.
+
+### Структура проєкту
+```
+src/
+ └─ main/
+     ├─ java/
+     │    └─ com.example.app
+     │        ├─ Main.java
+     │        ├─ controller/
+     │        │    └─ UserController.java
+     │        ├─ model/
+     │        │    └─ User.java
+     │        ├─ repository/
+     │        │    └─ UserRepository.java
+     └─ resources/
+          └─application.properties
+
+```
+
+### Підключення до бази даних (application.properties):
+``` spring.datasource.url=jdbc:mysql://localhost:3307/db
+spring.datasource.username=root
+spring.datasource.password=password
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.hibernate.naming.physical-strategy=org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+```
+
+### Модель User:
+```
+package com.example.app.model;
+
+import jakarta.persistence.*;
+
+@Entity
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    private String email;
+    private String passwordHash;
+    private String role;
+
+    private Boolean isActive;
+
+    public Integer getId() {
+        return id;
+    }
+    public String getEmail() {
+        return email;
+    }
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+    public String getRole() {
+        return role;
+    }
+    public Boolean getIsActive() {
+        return isActive;
+    }
+    public void setId(Integer id) {
+        this.id = id;
+    }
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+    public void setRole(String role) {
+        this.role = role;
+    }
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+}
+```
+### Контроллер UserController:
+```
+package com.example.app.controller;
+
+import com.example.app.model.User;
+import com.example.app.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/users")
+public class UserController {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @GetMapping
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable Integer id) {
+        return userRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public User createUser(@RequestBody User user) {
+        return userRepository.save(user);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody User updatedUser) {
+        return userRepository.findById(id)
+                .map(user -> {
+                    user.setEmail(updatedUser.getEmail());
+                    user.setPasswordHash(updatedUser.getPasswordHash());
+                    user.setRole(updatedUser.getRole());
+                    user.setIsActive(updatedUser.getIsActive());
+                    return ResponseEntity.ok(userRepository.save(user));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
+        if (userRepository.existsById(id)) {
+            userRepository.deleteById(id);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+}
+```
+### Інтерфейс UserRepository
+Відповідає за доступ до бази даних і реалізує шар репозиторію для сутності User. Розширює JpaRepository, що дозволяє використовувати готові CRUD-операції без необхідності їхньої ручної реалізації.
+```
+package com.example.app.repository;
+
+import com.example.app.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserRepository extends JpaRepository<User, Integer> {
+}
+```
+
+
+
+
+
+
