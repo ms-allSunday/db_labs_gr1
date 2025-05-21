@@ -2,7 +2,7 @@
 
 У рамках проєкту розробляється:
 - SQL-скрипти для створення та початкового наповнення бази даних;
-- RESTfull сервіс для управління даними.
+- RESTful сервіс для управління даними.
 
 
 ## SQL-скрипти
@@ -120,9 +120,9 @@ INSERT INTO Answer (value, responseId, questionId) VALUES
 ('No issues', 4, 6);
 ```
 
-## RESTfull сервіс для управління даними
+## RESTful сервіс для управління даними
 
-RESTfull сервіс для управління таблицею User у базі даних db, створеної в MySQL. Цей застосунок був створений за допомогою фреймворку Spring Boot на мові Java. Цей застосунок реалізує набір CRUD-операцій (Create, Read, Update, Delete) для роботи з користувачами, що зберігаються в базі даних.
+RESTful сервіс для управління таблицею User у базі даних db, створеної в MySQL. Цей застосунок був створений за допомогою фреймворку Spring Boot на мові Java. Цей застосунок реалізує набір CRUD-операцій (Create, Read, Update, Delete) для роботи з користувачами, що зберігаються в базі даних.
 
 ### Структура проєкту
 ```
@@ -143,9 +143,11 @@ src/
 ```
 
 ### Підключення до бази даних (application.properties):
-``` spring.datasource.url=jdbc:mysql://localhost:3307/db
+``` properties
+spring.datasource.url=jdbc:mysql://localhost:3307/db
+spring.datasource.url=jdbc:mysql://localhost:3307/db
 spring.datasource.username=root
-spring.datasource.password=password
+spring.datasource.password=08642Vikaq!
 spring.jpa.hibernate.ddl-auto=none
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
@@ -153,7 +155,7 @@ spring.jpa.hibernate.naming.physical-strategy=org.hibernate.boot.model.naming.Ph
 ```
 
 ### Модель User:
-```
+``` java
 package com.example.app.model;
 
 import jakarta.persistence.*;
@@ -202,14 +204,16 @@ public class User {
         this.isActive = isActive;
     }
 }
+
 ```
-### Контроллер UserController:
-```
+### Контролер UserController:
+``` java
 package com.example.app.controller;
 
 import com.example.app.model.User;
 import com.example.app.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -221,49 +225,85 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    // Отримати всіх користувачів
     @GetMapping
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public ResponseEntity<?> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        return ResponseEntity.ok(users);
     }
 
+    // Отримати одного за ID
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Integer id) {
-        return userRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Object> getUserById(@PathVariable Integer id) {
+        if (userRepository.existsById(id)) {
+            return ResponseEntity.ok(userRepository.findById(id).get());
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Користувача з ID " + id + " не знайдено");
+        }
     }
 
+    // Додати нового
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
+    public ResponseEntity<?> createUser(@RequestBody(required = false) User user) {
+        if (user == null) {
+            return ResponseEntity.badRequest().body("Помилка: не надано дані користувача.");
+        }
+
+        List<User> existingUsers = userRepository.findAll().stream()
+                .filter(u -> u.getEmail().equals(user.getEmail()))
+                .toList();
+
+        if (!existingUsers.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Користувач з поштою " + user.getEmail() + " вже існує.");
+        }
+
+        User savedUser = userRepository.save(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
 
+
+    // Оновити існуючого
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody User updatedUser) {
-        return userRepository.findById(id)
-                .map(user -> {
-                    user.setEmail(updatedUser.getEmail());
-                    user.setPasswordHash(updatedUser.getPasswordHash());
-                    user.setRole(updatedUser.getRole());
-                    user.setIsActive(updatedUser.getIsActive());
-                    return ResponseEntity.ok(userRepository.save(user));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> updateUser(@PathVariable Integer id, @RequestBody(required = false) User updatedUser) {
+        if (updatedUser == null) {
+            return ResponseEntity.badRequest().body("Дані для оновлення не надані.");
+        }
+
+        var userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setEmail(updatedUser.getEmail());
+            user.setPasswordHash(updatedUser.getPasswordHash());
+            user.setRole(updatedUser.getRole());
+            user.setIsActive(updatedUser.getIsActive());
+            userRepository.save(user);
+            return ResponseEntity.ok(user);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Користувача з ID " + id + " не знайдено");
+        }
     }
 
+
+
+
+    // Видалити користувача
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Integer id) {
+    public ResponseEntity<?> deleteUser(@PathVariable Integer id) {
         if (userRepository.existsById(id)) {
             userRepository.deleteById(id);
             return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Користувача з ID " + id + " не знайдено");
         }
-        return ResponseEntity.notFound().build();
     }
 }
 ```
 ### Інтерфейс UserRepository
 Відповідає за доступ до бази даних і реалізує шар репозиторію для сутності User. Розширює JpaRepository, що дозволяє використовувати готові CRUD-операції без необхідності їхньої ручної реалізації.
-```
+``` java
 package com.example.app.repository;
 
 import com.example.app.model.User;
@@ -272,6 +312,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRepository extends JpaRepository<User, Integer> {
 }
 ```
+
+
 
 
 
