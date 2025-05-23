@@ -147,7 +147,7 @@ src/
 spring.datasource.url=jdbc:mysql://localhost:3307/db
 spring.datasource.url=jdbc:mysql://localhost:3307/db
 spring.datasource.username=root
-spring.datasource.password=08642Vikaq!
+spring.datasource.password=password
 spring.jpa.hibernate.ddl-auto=none
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
