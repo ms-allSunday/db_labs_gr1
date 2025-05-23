@@ -1,0 +1,7 @@
+  CREATE TABLE User (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    passwordHash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    isActive BOOLEAN NOT NULL
+);
